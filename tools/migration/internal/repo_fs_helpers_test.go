@@ -26,7 +26,7 @@ func TestRepoMigrationHelper_CloneRepo(t *testing.T) {
 		require.NoError(t, os.Symlink(oldRepo, oldRepo+"something"))
 		defer requireRmDir(t, linkedRepoPath)
 
-		newRepoPath, err := CloneRepo(linkedRepoPath)
+		newRepoPath, err := CloneRepo(linkedRepoPath, 42)
 		require.NoError(t, err)
 		defer requireRmDir(t, newRepoPath)
 
@@ -40,7 +40,7 @@ func TestRepoMigrationHelper_CloneRepo(t *testing.T) {
 		oldRepo := requireMakeTempDir(t, "")
 		defer requireRmDir(t, oldRepo)
 
-		result, err := CloneRepo(oldRepo)
+		result, err := CloneRepo(oldRepo, 42)
 		assert.Error(t, err, "old-repo must be a symbolic link.")
 		assert.Equal(t, "", result)
 
@@ -48,7 +48,7 @@ func TestRepoMigrationHelper_CloneRepo(t *testing.T) {
 		require.NoError(t, os.Symlink(oldRepo, oldRepo+"something"))
 		defer requireRmDir(t, linkedRepoPath)
 
-		result, err = CloneRepo(linkedRepoPath)
+		result, err = CloneRepo(linkedRepoPath, 42)
 		assert.NoError(t, err)
 		assert.NotEqual(t, "", result)
 	})
@@ -68,11 +68,16 @@ func TestRepoMigrationHelper_CloneRepo(t *testing.T) {
 		// updating, which is correct behavior. Programmatically proving it restarts
 		// in this test was more trouble than it was worth.
 		var repos []string
-		for i := 1; i < 10; i++ {
-			result, err := CloneRepo(linkedRepoPath)
+		var endRegex string
+		for i := 0; i < 10; i++ {
+			result, err := CloneRepo(linkedRepoPath, 42)
 			require.NoError(t, err)
 			repos = append(repos, result)
-			endRegex := fmt.Sprintf("-%03d$", i)
+			if i == 0 {
+				endRegex = "[0-9]{8}-[0-9]{6}-042$"
+			} else {
+				endRegex = fmt.Sprintf("[0-9]{8}-[0-9]{6}-042-%d$", i)
+			}
 			regx, err := regexp.Compile(endRegex)
 			assert.NoError(t, err)
 			assert.Regexp(t, regx, result)
@@ -80,7 +85,6 @@ func TestRepoMigrationHelper_CloneRepo(t *testing.T) {
 		for _, dir := range repos {
 			requireRmDir(t, dir)
 		}
-
 	})
 }
 
@@ -93,7 +97,7 @@ func TestRepoFSHelpers_InstallNewRepo(t *testing.T) {
 	require.NoError(t, os.Symlink(oldRepo, oldRepo+"something"))
 	defer requireRmDir(t, linkedRepoPath)
 
-	newRepoPath, err := CloneRepo(linkedRepoPath)
+	newRepoPath, err := CloneRepo(linkedRepoPath, 42)
 	require.NoError(t, err)
 
 	// put something in each repo dir so we know which is which

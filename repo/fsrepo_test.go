@@ -75,7 +75,7 @@ const (
 }`
 )
 
-func TestInitRepo(t *testing.T) {
+func TestInitRepoDirect(t *testing.T) {
 	tf.UnitTest(t)
 	cfg := config.NewDefaultConfig()
 
@@ -138,7 +138,7 @@ func TestFSRepoOpen(t *testing.T) {
 		assert.NoError(t, err)
 		defer os.RemoveAll(dir)
 
-		assert.NoError(t, InitFSRepo(dir, config.NewDefaultConfig()))
+		assert.NoError(t, InitFSRepoDirect(dir, config.NewDefaultConfig()))
 		// set wrong version
 		assert.NoError(t, ioutil.WriteFile(filepath.Join(dir, versionFilename), []byte("2"), 0644))
 
@@ -150,7 +150,7 @@ func TestFSRepoOpen(t *testing.T) {
 		assert.NoError(t, err)
 		defer os.RemoveAll(dir)
 
-		assert.NoError(t, InitFSRepo(dir, config.NewDefaultConfig()))
+		assert.NoError(t, InitFSRepoDirect(dir, config.NewDefaultConfig()))
 		// set wrong version
 		assert.NoError(t, ioutil.WriteFile(filepath.Join(dir, versionFilename), []byte("0"), 0644))
 
@@ -162,7 +162,7 @@ func TestFSRepoOpen(t *testing.T) {
 		assert.NoError(t, err)
 
 		defer os.RemoveAll(dir)
-		assert.NoError(t, InitFSRepo(dir, config.NewDefaultConfig()))
+		assert.NoError(t, InitFSRepoDirect(dir, config.NewDefaultConfig()))
 		// set wrong version
 		assert.NoError(t, ioutil.WriteFile(filepath.Join(dir, versionFilename), []byte("v.8"), 0644))
 
@@ -181,7 +181,7 @@ func TestFSRepoRoundtrip(t *testing.T) {
 	cfg := config.NewDefaultConfig()
 	cfg.API.Address = "foo" // testing that what we get back isnt just the default
 
-	assert.NoError(t, err, InitFSRepo(dir, cfg))
+	assert.NoError(t, err, InitFSRepoDirect(dir, cfg))
 
 	r, err := OpenFSRepo(dir)
 	assert.NoError(t, err)
@@ -209,7 +209,7 @@ func TestFSRepoReplaceAndSnapshotConfig(t *testing.T) {
 
 	cfg := config.NewDefaultConfig()
 	cfg.API.Address = "foo"
-	assert.NoError(t, err, InitFSRepo(dir, cfg))
+	assert.NoError(t, err, InitFSRepoDirect(dir, cfg))
 
 	expSnpsht, err := ioutil.ReadFile(filepath.Join(dir, configFilename))
 	require.NoError(t, err)
@@ -247,7 +247,7 @@ func TestRepoLock(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	cfg := config.NewDefaultConfig()
-	assert.NoError(t, err, InitFSRepo(dir, cfg))
+	assert.NoError(t, err, InitFSRepoDirect(dir, cfg))
 
 	r, err := OpenFSRepo(dir)
 	assert.NoError(t, err)
@@ -269,7 +269,7 @@ func TestRepoLockFail(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	cfg := config.NewDefaultConfig()
-	assert.NoError(t, err, InitFSRepo(dir, cfg))
+	assert.NoError(t, err, InitFSRepoDirect(dir, cfg))
 
 	// set invalid version, to make opening the repo fail
 	assert.NoError(t,
@@ -366,7 +366,7 @@ func TestRepoAPIFile(t *testing.T) {
 
 // Inits a repo and opens it (ensuring it is openable)
 func initAndOpenRepo(repoPath string, cfg *config.Config) (*FSRepo, error) {
-	if err := InitFSRepo(repoPath, cfg); err != nil {
+	if err := InitFSRepoDirect(repoPath, cfg); err != nil {
 		return nil, err
 	}
 	return OpenFSRepo(repoPath)
@@ -377,7 +377,8 @@ func checkNewRepoFiles(t *testing.T, path string) {
 	assert.NoError(t, err)
 
 	t.Log("snapshot path was created during FSRepo Init")
-	assert.True(t, fileExists(filepath.Join(path, snapshotStorePrefix)))
+	exists, _ := fileExists(filepath.Join(path, snapshotStorePrefix))
+	assert.True(t, exists)
 
 	// TODO: asserting the exact content here is gonna get old real quick
 	t.Log("config file matches expected value")
@@ -407,7 +408,7 @@ func withFSRepo(t *testing.T, f func(*FSRepo)) {
 	defer os.RemoveAll(dir)
 
 	cfg := config.NewDefaultConfig()
-	require.NoError(t, err, InitFSRepo(dir, cfg))
+	require.NoError(t, err, InitFSRepoDirect(dir, cfg))
 
 	r, err := OpenFSRepo(dir)
 	require.NoError(t, err)

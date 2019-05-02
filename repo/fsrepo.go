@@ -60,9 +60,44 @@ type FSRepo struct {
 
 var _ Repo = (*FSRepo)(nil)
 
-// InitFSRepo initializes a new repo at a target path, establishing a provided configuration.
-// The target path must not exist, or must reference an empty, writable directory.
-func InitFSRepo(targetPath string, cfg *config.Config) error {
+// InitFsRepo initializes a new repo at the target path with the provided configuration.
+// The successful result creates a symlink at targetPath pointing to a sibling directory
+// named with a timestamp and repo version number.
+// The link path must be empty prior. If the computed actual directory exists, it must be empty.
+func InitFsRepo(targetPath string, cfg *config.Config) error {
+	linkPath, err := homedir.Expand(targetPath)
+	if err != nil {
+		return err
+	}
+
+	container, basename := filepath.Split(linkPath)
+	if container == "" { // path contained no separator
+		container = "./"
+	}
+
+	dirpath := container + MakeRepoDirName(basename, time.Now(), Version, 0)
+
+	exists, err := fileExists(linkPath)
+	if err != nil {
+		return errors.Wrapf(err, "error inspecting repo symlink path %s", linkPath)
+	} else if exists {
+		return errors.Errorf("refusing to init repo symlink at %s, file exists", linkPath)
+	}
+
+	// Create the actual directory and then the link to it.
+	if err = InitFSRepoDirect(dirpath, cfg); err != nil {
+		return err
+	}
+	if err = os.Symlink(dirpath, linkPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// InitFSRepoDirect initializes a new repo at a target path, establishing a provided configuration.
+// The target path must not exist, or must reference an empty, read/writable directory.
+func InitFSRepoDirect(targetPath string, cfg *config.Config) error {
 	repoPath, err := homedir.Expand(targetPath)
 	if err != nil {
 		return err
@@ -196,7 +231,10 @@ func (r *FSRepo) ReplaceConfig(cfg *config.Config) error {
 // time of snapshot to the filename.
 func (r *FSRepo) SnapshotConfig(cfg *config.Config) error {
 	snapshotFile := filepath.Join(r.path, snapshotStorePrefix, genSnapshotFileName())
-	if fileExists(snapshotFile) {
+	exists, err := fileExists(snapshotFile)
+	if err != nil {
+		return errors.Wrap(err, "error checking snapshot file")
+	} else if exists {
 		// this should never happen
 		return fmt.Errorf("file already exists: %s", snapshotFile)
 	}
@@ -374,14 +412,34 @@ func (r *FSRepo) openDealsDatastore() error {
 	return nil
 }
 
+// MakeRepoDirName constructs a name for a concrete repo directory, which includes its
+// version number and a timestamp. The name will begin with prefix and, if uniqueifier is
+// non-zero, end with that (intended as an ordinal for finding a free name).
+// E.g. ".filecoin-20190102-140425-012-1
+// This is exported for use by migrations.
+func MakeRepoDirName(prefix string, ts time.Time, version uint, uniqueifier uint) string {
+	name := strings.Join([]string{
+		prefix,
+		ts.Format("20060102-150405"),
+		fmt.Sprintf("%03d", version),
+	}, "-")
+	if uniqueifier != 0 {
+		name = name + fmt.Sprintf("-%d", uniqueifier)
+	}
+	return name
+}
+
 func initVersion(p string, version uint) error {
 	return ioutil.WriteFile(filepath.Join(p, versionFilename), []byte(strconv.Itoa(int(version))), 0644)
 }
 
 func initConfig(p string, cfg *config.Config) error {
 	configFile := filepath.Join(p, configFilename)
-	if fileExists(configFile) {
-		return fmt.Errorf("file already exists: %s", configFile)
+	exists, err := fileExists(configFile)
+	if err != nil {
+		return errors.Wrap(err, "error inspecting config file")
+	} else if exists {
+		return fmt.Errorf("config file already exists: %s", configFile)
 	}
 
 	if err := cfg.WriteFile(configFile); err != nil {
@@ -431,12 +489,15 @@ func isEmptyDir(path string) (bool, error) {
 	return len(infos) == 0, nil
 }
 
-func fileExists(file string) bool {
+func fileExists(file string) (bool, error) {
 	_, err := os.Stat(file)
-	if os.IsNotExist(err) {
-		return false
+	if err == nil {
+		return true, nil
 	}
-	return err == nil
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 // SetAPIAddr writes the address to the API file. SetAPIAddr expects parameter

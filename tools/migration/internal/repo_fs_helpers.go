@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
+	"time"
 
+	"github.com/filecoin-project/go-filecoin/repo"
 	rcopy "github.com/otiai10/copy"
 )
 
@@ -20,17 +21,16 @@ import (
 //	 oldRepoLink must be a symlink. The symlink will be resolved and used for
 //   copying.
 //
-//   The new repo dir name will look like: /Users/davonte/.filecoin-20190806-150455-001
-//   If there is an existing dir by that name, the integer at the end will be
-//   incremented until there is a free one or a new timestamp.
+//   The new repo dir name will include a timestamp, version number, and
+//   uniqueifyig tag if necessary.
 //
-func CloneRepo(oldRepoLink string) (string, error) {
+func CloneRepo(oldRepoLink string, newVersion uint) (string, error) {
 	realRepoPath, err := os.Readlink(oldRepoLink)
 	if err != nil {
 		return "", fmt.Errorf("old-repo must be a symbolic link: %s", err)
 	}
 
-	newRepoPath, err := getNewRepoPath(oldRepoLink, "")
+	newRepoPath, err := getNewRepoPath(oldRepoLink, "", newVersion)
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +73,7 @@ func OpenRepo(repoPath string) (*os.File, error) {
 //     error
 // Example output:
 //     /Users/davonte/.filecoin-20190806-150455-001
-func getNewRepoPath(oldPath, newRepoOpt string) (string, error) {
+func getNewRepoPath(oldPath, newRepoOpt string, version uint) (string, error) {
 	var newRepoPrefix string
 	if newRepoOpt != "" {
 		newRepoPrefix = newRepoOpt
@@ -81,12 +81,11 @@ func getNewRepoPath(oldPath, newRepoOpt string) (string, error) {
 		newRepoPrefix = oldPath
 	}
 
-	// unlikely to see a name collision but make sure; making it loop up to 1000
-	// ensures that even if there are 1000 calls/sec then the timestamp will change
-	// anyway.
+	// Search for a free name
+	now := time.Now()
 	var newpath string
-	for i := 1; i < 1000; i++ {
-		newpath = strings.Join([]string{newRepoPrefix, NowString(), fmt.Sprintf("%03d", i)}, "-")
+	for i := uint(0); i < 1000; i++ {
+		newpath = repo.MakeRepoDirName(newRepoPrefix, now, version, i)
 		if _, err := os.Stat(newpath); os.IsNotExist(err) {
 			return newpath, nil
 		}
