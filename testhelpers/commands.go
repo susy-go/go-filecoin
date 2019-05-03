@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-path"
 	ma "github.com/multiformats/go-multiaddr"
@@ -757,11 +758,11 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 	// Ensure we have the actual binary
 	filecoinBin := MustGetFilecoinBinary()
 
-	now := time.Now().String()
-	dirname := "go-fil-test" + now
+	id := uuid.New().String()
+	dirname := "go-fil-test-" + id[:8]
 	repoDir := path.Join([]string{os.TempDir(), dirname})
 
-	sectorDirname := "go-fil-test-sectors" + now
+	sectorDirname := "go-fil-test-sectors-" + id[:8]
 	sectorDir := path.Join([]string{os.TempDir(), sectorDirname})
 
 	td := &TestDaemon{
