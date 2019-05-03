@@ -56,7 +56,7 @@ var initCmd = &cmds.Command{
 			return err
 		}
 
-		if err := repo.InitFSRepo(repoDir, newConfig); err != nil {
+		if err := repo.InitFsRepo(repoDir, newConfig); err != nil {
 			return err
 		}
 		rep, err := repo.OpenFSRepo(repoDir)
