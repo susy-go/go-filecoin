@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
+	"github.com/ipfs/go-path"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multiaddr-net"
 	"github.com/pkg/errors"
@@ -756,15 +757,12 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 	// Ensure we have the actual binary
 	filecoinBin := MustGetFilecoinBinary()
 
-	repoDir, err := ioutil.TempDir("", "go-fil-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	now := time.Now().String()
+	dirname := "go-fil-test" + now
+	repoDir := path.Join([]string{os.TempDir(), dirname})
 
-	sectorDir, err := ioutil.TempDir("", "go-fil-test-sectors")
-	if err != nil {
-		t.Fatal(err)
-	}
+	sectorDirname := "go-fil-test-sectors" + now
+	sectorDir := path.Join([]string{os.TempDir(), sectorDirname})
 
 	td := &TestDaemon{
 		test:        t,
