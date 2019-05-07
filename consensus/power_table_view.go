@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"context"
+	"github.com/filecoin-project/go-filecoin/types"
 	"math/big"
 
 	"github.com/ipfs/go-ipfs-blockstore"
@@ -49,10 +50,8 @@ func (v *MarketView) Total(ctx context.Context, st state.Tree, bstore blockstore
 	if ec != 0 {
 		return 0, errors.Errorf("non-zero return code from query message: %d", ec)
 	}
-	res := big.NewInt(0)
-	res.SetBytes(rets[0])
 
-	return res.Uint64(), nil
+	return types.NewBytesAmountFromBytes(rets[0]).Uint64(), nil
 }
 
 // Miner returns the storage that this miner has committed as a uint64.
